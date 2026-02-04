@@ -20,25 +20,34 @@ jobs:
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy via Proxmox
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << 'DEPLOY'
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << DEPLOY
             pct exec 126 -- bash -c '
               set -e
-              export PATH="/usr/local/bin:$PATH"
+              export PATH="/usr/local/bin:\$PATH"
               cd /opt/todo-app
               
               echo "=== Pulling latest code ==="
               git fetch origin main
               git reset --hard origin/main
               
+              echo "=== Creating .env from secrets ==="
+              echo "DATABASE_URL=postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/${DB_NAME}" > apps/api/.env
+              echo "PORT=3001" >> apps/api/.env
+              echo "NODE_ENV=production" >> apps/api/.env
+              
               echo "=== Installing dependencies ==="
               pnpm install --frozen-lockfile || pnpm install
               
-              echo "=== Building API ==="
-              # API uses tsx, no build needed
-              
               echo "=== Building Web ==="
-              cd apps/web && pnpm build && cd ../..
+              cd apps/web
+              NEXT_PUBLIC_API_URL=https://todo-api.singaporetestlab.com pnpm build
+              cd ../..
               
               echo "=== Restarting services ==="
               pm2 restart all
@@ -52,17 +61,12 @@ jobs:
       - name: Health Check
         run: |
           sleep 10
-          echo "Checking API..."
           API_STATUS=$(curl -sf https://todo-api.singaporetestlab.com/health | jq -r '.status')
-          echo "API status: $API_STATUS"
-          
-          echo "Checking Web..."
           WEB_CODE=$(curl -sf -o /dev/null -w "%{http_code}" https://todo.singaporetestlab.com)
-          echo "Web status: $WEB_CODE"
           
           if [ "$API_STATUS" = "ok" ] && [ "$WEB_CODE" = "200" ]; then
             echo "✅ Deployment successful!"
           else
-            echo "❌ Health check failed"
+            echo "❌ Health check failed (API: $API_STATUS, Web: $WEB_CODE)"
             exit 1
           fi
