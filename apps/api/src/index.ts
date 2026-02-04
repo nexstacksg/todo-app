@@ -38,6 +38,31 @@ app.post('/todos', async (c) => {
   return c.json(todo, 201)
 })
 
+app.patch('/todos/:id', async (c) => {
+  const id = Number(c.req.param('id'))
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return c.json({ error: 'Invalid id' }, 400)
+  }
+
+  const result = await query(
+    'UPDATE todos SET completed = NOT completed, updated_at = NOW() WHERE id = $1 RETURNING id, title, completed',
+    [id]
+  )
+
+  if (result.rowCount === 0) {
+    return c.json({ error: 'Todo not found' }, 404)
+  }
+
+  const todo: Todo = {
+    id: String(result.rows[0].id),
+    title: result.rows[0].title,
+    completed: result.rows[0].completed,
+  }
+
+  return c.json(todo)
+})
+
 const port = Number(process.env.PORT ?? 3001)
 
 serve({
