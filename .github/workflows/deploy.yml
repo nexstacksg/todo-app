@@ -5,11 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  SERVER_HOST: ${{ secrets.SERVER_HOST }}
-  SERVER_USER: root
-  APP_DIR: /opt/todo-app
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -24,74 +19,40 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy to Server
+      - name: Deploy via Proxmox
         run: |
-          ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST << 'DEPLOY'
-            set -e
-            
-            # Ensure app directory exists
-            mkdir -p ${{ env.APP_DIR }}
-            cd ${{ env.APP_DIR }}
-            
-            # Clone or pull
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/nexstacksg/todo-app.git .
-            else
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << 'DEPLOY'
+            # Execute commands in container 126
+            pct exec 126 -- bash -c '
+              set -e
+              export PATH="/usr/local/bin:$PATH"
+              cd /opt/todo-app
+              
+              echo "=== Pulling latest code ==="
               git fetch origin main
               git reset --hard origin/main
-            fi
-            
-            # Install dependencies
-            pnpm install --frozen-lockfile
-            
-            # Run database migrations
-            cd apps/api
-            if [ -f ".env" ]; then
-              pnpm run migrate 2>/dev/null || echo "Migration skipped or no migrate script"
-            fi
-            cd ../..
-            
-            # Build apps
-            pnpm build
-            
-            # Setup PM2 ecosystem if not exists
-            if [ ! -f "ecosystem.config.cjs" ]; then
-              cat > ecosystem.config.cjs << 'EOF'
-          module.exports = {
-            apps: [
-              {
-                name: 'todo-api',
-                cwd: './apps/api',
-                script: 'dist/index.js',
-                env: {
-                  NODE_ENV: 'production',
-                  PORT: 3001
-                }
-              },
-              {
-                name: 'todo-web',
-                cwd: './apps/web',
-                script: 'node_modules/next/dist/bin/next',
-                args: 'start -p 3000',
-                env: {
-                  NODE_ENV: 'production',
-                  NEXT_PUBLIC_API_URL: 'https://todo-api.singaporetestlab.com'
-                }
-              }
-            ]
-          }
-          EOF
-            fi
-            
-            # Restart PM2
-            pm2 delete todo-api todo-web 2>/dev/null || true
-            pm2 start ecosystem.config.cjs
-            pm2 save
-            
-            echo "✅ Deployment complete!"
+              
+              echo "=== Installing dependencies ==="
+              pnpm install --frozen-lockfile || pnpm install
+              
+              echo "=== Building ==="
+              pnpm build || echo "Build step skipped"
+              
+              echo "=== Restarting services ==="
+              pm2 restart all
+              
+              echo "=== Status ==="
+              pm2 status
+            '
           DEPLOY
 
       - name: Health Check
         run: |
           sleep 5
-          ssh $SERVER_USER@$SERVER_HOST "curl -sf http://localhost:3001/health || echo 'API health check failed'"
+          STATUS=$(curl -sf https://todo-api.singaporetestlab.com/health | jq -r '.status')
+          if [ "$STATUS" = "ok" ]; then
+            echo "✅ Deployment successful! API is healthy."
+          else
+            echo "❌ Health check failed"
+            exit 1
+          fi
