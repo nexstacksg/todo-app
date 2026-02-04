@@ -22,7 +22,6 @@ jobs:
       - name: Deploy via Proxmox
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_HOST }} << 'DEPLOY'
-            # Execute commands in container 126
             pct exec 126 -- bash -c '
               set -e
               export PATH="/usr/local/bin:$PATH"
@@ -35,11 +34,15 @@ jobs:
               echo "=== Installing dependencies ==="
               pnpm install --frozen-lockfile || pnpm install
               
-              echo "=== Building ==="
-              pnpm build || echo "Build step skipped"
+              echo "=== Building API ==="
+              # API uses tsx, no build needed
+              
+              echo "=== Building Web ==="
+              cd apps/web && pnpm build && cd ../..
               
               echo "=== Restarting services ==="
               pm2 restart all
+              pm2 save
               
               echo "=== Status ==="
               pm2 status
@@ -48,10 +51,17 @@ jobs:
 
       - name: Health Check
         run: |
-          sleep 5
-          STATUS=$(curl -sf https://todo-api.singaporetestlab.com/health | jq -r '.status')
-          if [ "$STATUS" = "ok" ]; then
-            echo "✅ Deployment successful! API is healthy."
+          sleep 10
+          echo "Checking API..."
+          API_STATUS=$(curl -sf https://todo-api.singaporetestlab.com/health | jq -r '.status')
+          echo "API status: $API_STATUS"
+          
+          echo "Checking Web..."
+          WEB_CODE=$(curl -sf -o /dev/null -w "%{http_code}" https://todo.singaporetestlab.com)
+          echo "Web status: $WEB_CODE"
+          
+          if [ "$API_STATUS" = "ok" ] && [ "$WEB_CODE" = "200" ]; then
+            echo "✅ Deployment successful!"
           else
             echo "❌ Health check failed"
             exit 1
