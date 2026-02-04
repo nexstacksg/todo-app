@@ -10,7 +10,7 @@ app.get('/health', (c) => c.json({ status: 'ok' }))
 app.get('/todos', async (c) => {
   const result = await query('SELECT * FROM todos ORDER BY created_at DESC')
   const todos: Todo[] = result.rows.map(row => ({
-    id: row.id,
+    id: String(row.id),
     title: row.title,
     completed: row.completed
   }))
@@ -30,7 +30,7 @@ app.post('/todos', async (c) => {
   )
   
   const todo: Todo = {
-    id: result.rows[0].id,
+    id: String(result.rows[0].id),
     title: result.rows[0].title,
     completed: result.rows[0].completed
   }
@@ -39,28 +39,41 @@ app.post('/todos', async (c) => {
 })
 
 app.patch('/todos/:id', async (c) => {
-  const id = Number(c.req.param('id'))
+  const id = c.req.param('id')
+  const { completed } = await c.req.json()
 
-  if (!Number.isInteger(id) || id <= 0) {
-    return c.json({ error: 'Invalid id' }, 400)
+  if (typeof completed !== 'boolean') {
+    return c.json({ error: 'Completed status must be a boolean' }, 400)
   }
 
   const result = await query(
-    'UPDATE todos SET completed = NOT completed, updated_at = NOW() WHERE id = $1 RETURNING id, title, completed',
-    [id]
+    'UPDATE todos SET completed = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    [completed, id]
   )
 
-  if (result.rowCount === 0) {
+  if (result.rows.length === 0) {
     return c.json({ error: 'Todo not found' }, 404)
   }
 
   const todo: Todo = {
     id: String(result.rows[0].id),
     title: result.rows[0].title,
-    completed: result.rows[0].completed,
+    completed: result.rows[0].completed
   }
 
   return c.json(todo)
+})
+
+app.delete('/todos/:id', async (c) => {
+  const id = c.req.param('id')
+  
+  const result = await query('DELETE FROM todos WHERE id = $1', [id])
+  
+  if (result.rowCount === 0) {
+    return c.json({ error: 'Todo not found' }, 404)
+  }
+
+  return c.body(null, 204)
 })
 
 const port = Number(process.env.PORT ?? 3001)
