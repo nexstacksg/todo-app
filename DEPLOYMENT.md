@@ -71,7 +71,7 @@ pm2 restart all
 
 ### API (`apps/api/.env`)
 ```
-DATABASE_URL=postgresql://todo_user:password@15.235.196.21:5432/todo_db
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@15.235.196.21:5432/todo_db
 PORT=3001
 NODE_ENV=production
 ```

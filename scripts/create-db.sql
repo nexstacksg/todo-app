@@ -1,8 +1,9 @@
 -- Create database and user for todo-app
--- Run on PostgreSQL server (15.235.196.21)
+-- Run on PostgreSQL server
+-- NOTE: Replace <SECURE_PASSWORD> with actual password from secrets
 
--- Create user (change password!)
-CREATE USER todo_user WITH PASSWORD 'changeme';
+-- Create user (use password from environment/secrets!)
+CREATE USER todo_user WITH PASSWORD '<SECURE_PASSWORD>';
 
 -- Create database
 CREATE DATABASE todo_db OWNER todo_user;
@@ -10,10 +11,8 @@ CREATE DATABASE todo_db OWNER todo_user;
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE todo_db TO todo_user;
 
--- Connect to the database and create tables
 \c todo_db
 
--- Todos table
 CREATE TABLE IF NOT EXISTS todos (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -22,6 +21,5 @@ CREATE TABLE IF NOT EXISTS todos (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Grant table privileges
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO todo_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO todo_user;
