@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, KeyboardEvent } from 'react'
 import type { Todo } from '@todo/shared'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -14,14 +14,11 @@ export default function AddTodoForm({ onTodoAdded }: AddTodoFormProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
     
     const trimmedTitle = title.trim()
-    if (!trimmedTitle) {
-      setError('Title is required')
-      return
-    }
+    if (!trimmedTitle) return
 
     setSubmitting(true)
     setError(null)
@@ -48,41 +45,43 @@ export default function AddTodoForm({ onTodoAdded }: AddTodoFormProps) {
     }
   }
 
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSubmit()
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 30 }}>
-      <div style={{ display: 'flex', gap: 10 }}>
+    <div className="space-y-2">
+      <div className="relative">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="What needs to be done?"
-          style={{ 
-            flex: 1, 
-            padding: '12px 16px', 
-            borderRadius: 6, 
-            border: '1px solid #ddd',
-            fontSize: 16
-          }}
+          className="w-full px-5 py-4 text-lg bg-white border-0 rounded-xl shadow-sm 
+                     placeholder:text-gray-400 focus:outline-none focus:ring-2 
+                     focus:ring-blue-500/20 transition-shadow disabled:opacity-50"
           disabled={submitting}
+          autoFocus
         />
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            padding: '0 24px',
-            backgroundColor: '#0070f3',
-            color: 'white',
-            border: 'none',
-            borderRadius: 6,
-            cursor: submitting ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-            fontSize: 16
-          }}
-        >
-          {submitting ? '...' : 'Add'}
-        </button>
+        {title.trim() && (
+          <button
+            onClick={() => handleSubmit()}
+            disabled={submitting}
+            className="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 
+                       bg-blue-500 text-white text-sm font-medium rounded-lg
+                       hover:bg-blue-600 active:scale-95 transition-all
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? '...' : 'Add'}
+          </button>
+        )}
       </div>
-      {error && <p style={{ color: '#ff4d4f', fontSize: 14, marginTop: 8, marginLeft: 4 }}>{error}</p>}
-    </form>
+      {error && (
+        <p className="text-red-500 text-sm px-2">{error}</p>
+      )}
+    </div>
   )
 }
