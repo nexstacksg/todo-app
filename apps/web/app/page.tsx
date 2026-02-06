@@ -68,14 +68,14 @@ export default function HomePage() {
   const completedCount = todos.filter(t => t.completed).length
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-100">
       <div className="max-w-xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            NexStack Todo
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            ✅ Get It Done
           </h1>
-          <p className="text-gray-500 mt-2">Stay organized, get things done</p>
+          <p className="text-gray-500 mt-2">🌿 Simple tasks, clear mind</p>
         </div>
 
         {/* Main Content */}
@@ -84,7 +84,7 @@ export default function HomePage() {
           
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-red-500">
@@ -92,7 +92,7 @@ export default function HomePage() {
               <p className="text-sm">{error}</p>
               <button 
                 onClick={fetchTodos}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
               >
                 Retry
               </button>
